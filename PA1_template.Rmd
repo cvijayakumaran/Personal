@@ -1,0 +1,98 @@
+---
+title: "Assignment1"
+author: "Vijayakumaran"
+date: "November 26, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+    knitr::opts_chunk$set(echo = TRUE)
+```
+Read data to worksapcw
+```{r load_data}
+    activityFile <- read.csv("C:\\Users\\c_vij\\OneDrive\\Documents\\R\\activity.csv",header     =TRUE,sep=",",stringsAsFactors = FALSE)
+    names(activityFile) <- c("steps","ActivityDate","TimeInterval")
+```
+Load libraries
+```{r load_library}
+
+    install.packages("dplyr",repos = "http://cran.us.r-project.org")
+    install.packages("lubridate", repos = "http://cran.us.r-project.org")
+    library(dplyr)
+
+    library(lubridate)
+```
+Transdorm data
+```{r tranform_date}
+    tbl_activityFile <-tbl_df(activityFile)
+    tbl_activityFile <- tbl_activityFile %>% mutate(ActivityDate = ymd(ActivityDate),           TimeInterval=sprintf("%04d",TimeInterval))
+    tbl_activityFile_Clean <- filter(tbl_activityFile,complete.cases(tbl_activityFile))
+```
+Claculate total no. of steps taken per day
+```{r total_steps_per_day }
+    #dev.new()
+    #png('hist_TotalStepsPerDay.png')
+    Total_Steps_Per_Day <- aggregate(list(NSteps = tbl_activityFile_Clean$steps), by =          list(ActivityDate=tbl_activityFile_Clean$ActivityDate),FUN = sum)
+    hist(Total_Steps_Per_Day$NSteps,breaks=seq(0,22000,1000),col="blue",main="Histogram for     total number of steps by date", xlab="Nb of steps")
+    print(summary(Total_Steps_Per_Day))
+    
+ abline(ver=mean(Total_Steps_Per_Day$NSteps), col="red", lwd=2) 
+ abline(ver=median(Total_Steps_Per_Day$NSteps), col="green", lwd=2)
+    
+      # dev.off
+     summary(Total_Steps_Per_Day)
+```
+
+
+Average Daily Activity Pattern
+```{r avg_acivityPattern}
+    #dev.new()
+    #png('plot_meanStepsPerPeriod.png')
+    AvgStepsPerTP <- aggregate(list(NSteps = tbl_activityFile_Clean$steps), by =                list(TimeInterval=tbl_activityFile_Clean$TimeInterval),FUN = mean)
+    AvgStepsPerTP <- aggregate(list(NSteps = tbl_activityFile_Clean$steps), by =                list(TimeInterval=tbl_activityFile_Clean$TimeInterval),FUN = mean)
+    with(AvgStepsPerTP,plot(NSteps ~TimeInterval, xlab="Time interval", ylab="Nb of steps",     type="l", main="total number of steps across day time"))
+
+    #dev.off()
+    AvgSteps_Sorted <- arrange(AvgStepsPerTP, desc(NSteps))
+    print(head(AvgSteps_Sorted))
+
+```
+Imputuing Missing Values
+
+```{r Missingg_Values}
+    tbl_activityFile_Missing <- filter(tbl_activityFile,!complete.cases(tbl_activityFile))
+    NMissingValues = dim(tbl_activityFile_Missing)[1] 
+    print(NMissingValues)
+
+    table(tbl_activityFile_Missing$ActivityDate)
+
+    MergeFile <- inner_join(AvgStepsPerTP,tbl_activityFile, by= c("TimeInterval"))
+    MergeFile <- MergeFile %>% mutate(steps = ifelse(is.na(steps), NSteps,steps))
+
+```
+New Total Steps per Day
+
+```{r Totalstepsnew} 
+    TotalStepsPerDay_New <- aggregate(list(stepsUpdated = MergeFile$steps), by =                list(ActivityDate=MergeFile$ActivityDate),FUN = sum)
+    #dev.new()
+    hist(TotalStepsPerDay_New$stepsUpdated,breaks=seq(0,22000,1000),col="blue",main="Histogr     am for total number of steps by date", xlab="Nb of steps")
+    print(summary(TotalStepsPerDay_New))
+```
+Difference in Activity Pattern
+
+```{r diffactivityPattern}
+    MergeFile_WDay <- MergeFile %>% mutate(WDay_WE = as.factor(ifelse(wday(ActivityDate)         %in% c(1,7),"Week-End","WeekDay")))
+
+    MergeFile_WDay_Mean <- aggregate(list(steps = MergeFile_WDay$steps), by = list(WDay_WE      =MergeFile_WDay$WDay_WE,TimeInterval=MergeFile_WDay$TimeInterval),FUN = mean)
+
+    install.packages("ggplot2",repos = "http://cran.us.r-project.org")
+    library(ggplot2)
+
+    g <- ggplot(MergeFile_WDay_Mean, aes(x=TimeInterval,y=steps))
+    g <- g + geom_point() + facet_grid(.~WDay_WE) + theme(strip.background =                    element_rect(colour="black", fill="BlanchedAlmond", size=1.5, linetype="solid"),
+     panel.background= element_rect(fill="white", linetype="solid",colour="black")) 
+    g <- g + facet_wrap(~WDay_WE,nrow = 2) + scale_x_discrete(name="Interval", breaks =          c(0,500,1000,1500,2000,2500),labels = c(0,500,1000,1500,2000,2500))
+    print(g)
+
+```
+
